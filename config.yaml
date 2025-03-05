@@ -1,0 +1,7 @@
+build_graph:
+  n_nodes: 20
+  edge_probability: 0.3
+
+algorithm:
+  n_samples: 200
+  max_colors: 4
