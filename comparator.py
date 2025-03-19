@@ -15,12 +15,21 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 
 from graph_coloring.graph_algorithms import (
-    sampling_coloring, brute_force_coloring,
-    deterministic_chill_climbing, stochastic_hill_climbing,
-    tabu_search, simulated_annealing, genetic_algorithm,
-    island_genetic_algorithm, evolution_strategy,
-    CrossoverType, MutationType, TerminationType, CoolingSchedule
+    sampling_coloring,
+    brute_force_coloring,
+    deterministic_hill_climbing,
+    stochastic_hill_climbing,
+    tabu_search,
+    simulated_annealing,
+    genetic_algorithm,
+    island_genetic_algorithm,
+    evolution_strategy,
+    CrossoverType,
+    MutationType,
+    TerminationType,
+    CoolingSchedule,
 )
+
 
 @dataclass
 class AlgorithmResult:
@@ -32,6 +41,7 @@ class AlgorithmResult:
     memory_usage: float
     convergence: List[float]
     attempts: int
+
 
 class GraphColoringComparator:
     def __init__(self, output_dir: str = "results"):
@@ -53,60 +63,58 @@ class GraphColoringComparator:
             max_time = 60  # 60 seconds timeout
 
             try:
-                if config['name'] == "Brute Force":
+                if config["name"] == "Brute Force":
                     coloring, conflicts, attempts = brute_force_coloring(
-                        G,
-                        config['params']['max_colors']
+                        G, config["params"]["max_colors"]
                     )
-                elif config['name'] == "Hill Climbing":
-                    coloring, conflicts, attempts = deterministic_chill_climbing(G)
-                elif config['name'] == "Stochastic HC":
+                elif config["name"] == "Hill Climbing":
+                    coloring, conflicts, attempts = deterministic_hill_climbing(G)
+                elif config["name"] == "Stochastic HC":
                     coloring, conflicts, attempts = stochastic_hill_climbing(
-                        G,
-                        config['params']['max_iterations']
+                        G, config["params"]["max_iterations"]
                     )
-                elif config['name'] == "Tabu Search":
+                elif config["name"] == "Tabu Search":
                     coloring, conflicts, attempts = tabu_search(
                         G,
-                        config['params']['tabu_size'],
-                        config['params']['max_iterations']
+                        config["params"]["tabu_size"],
+                        config["params"]["max_iterations"],
                     )
-                elif config['name'] == "Simulated Annealing":
+                elif config["name"] == "Simulated Annealing":
                     coloring, conflicts, attempts = simulated_annealing(
                         G,
-                        config['params']['initial_temp'],
-                        config['params']['min_temp'],
-                        config['params']['max_iterations'],
-                        config['params']['schedule']
+                        config["params"]["initial_temp"],
+                        config["params"]["min_temp"],
+                        config["params"]["max_iterations"],
+                        config["params"]["schedule"],
                     )
-                elif config['name'] == "Genetic Algorithm":
+                elif config["name"] == "Genetic Algorithm":
                     coloring, conflicts, attempts = genetic_algorithm(
                         G,
-                        population_size=config['params']['population_size'],
-                        elite_size=config['params']['elite_size'],
-                        max_generations=config['params']['max_generations'],
-                        crossover_type=config['params']['crossover_type'],
-                        mutation_type=config['params']['mutation_type'],
-                        termination_type=config['params']['termination_type']
+                        population_size=config["params"]["population_size"],
+                        elite_size=config["params"]["elite_size"],
+                        max_generations=config["params"]["max_generations"],
+                        crossover_type=config["params"]["crossover_type"],
+                        mutation_type=config["params"]["mutation_type"],
+                        termination_type=config["params"]["termination_type"],
                     )
-                elif config['name'] == "Island GA":
+                elif config["name"] == "Island GA":
                     coloring, conflicts, attempts = island_genetic_algorithm(
                         G,
-                        num_islands=config['params']['num_islands'],
-                        migration_rate=config['params']['migration_rate'],
-                        migration_interval=config['params']['migration_interval'],
-                        population_size=config['params']['population_size'],
-                        elite_size=config['params']['elite_size'],
-                        max_generations=config['params']['max_generations']
+                        num_islands=config["params"]["num_islands"],
+                        migration_rate=config["params"]["migration_rate"],
+                        migration_interval=config["params"]["migration_interval"],
+                        population_size=config["params"]["population_size"],
+                        elite_size=config["params"]["elite_size"],
+                        max_generations=config["params"]["max_generations"],
                     )
-                elif config['name'] == "Evolution Strategy":
+                elif config["name"] == "Evolution Strategy":
                     coloring, conflicts, attempts = evolution_strategy(
                         G,
-                        num_colors=config['params']['num_colors'],
-                        loss_function=config['params']['loss_function'],
-                        mu=config['params']['mu'],
-                        lambda_=config['params']['lambda_'],
-                        generations=config['params']['generations']
+                        num_colors=config["params"]["num_colors"],
+                        loss_function=config["params"]["loss_function"],
+                        mu=config["params"]["mu"],
+                        lambda_=config["params"]["lambda_"],
+                        generations=config["params"]["generations"],
                     )
 
                 if time.perf_counter() - start_time > max_time:
@@ -117,14 +125,14 @@ class GraphColoringComparator:
                 memory_usage = self.measure_memory() - start_memory
 
                 result = AlgorithmResult(
-                    name=config['name'],
-                    params=config['params'],
+                    name=config["name"],
+                    params=config["params"],
                     coloring=coloring,
                     conflicts=conflicts,
                     execution_time=execution_time,
                     memory_usage=memory_usage,
                     convergence=convergence,
-                    attempts=attempts
+                    attempts=attempts,
                 )
                 self.results.append(result)
                 print(f"Finished {config['name']} in {execution_time:.2f}s")
@@ -142,7 +150,7 @@ class GraphColoringComparator:
         print("Starting plot generation...")
 
         # Set matplotlib backend to Agg
-        plt.switch_backend('Agg')
+        plt.switch_backend("Agg")
 
         try:
             # Create figure
@@ -164,10 +172,10 @@ class GraphColoringComparator:
         # Plot execution times
         try:
             sns.barplot(x=names, y=times, ax=ax1)
-            ax1.set_title('Execution Time')
-            ax1.set_xlabel('Algorithm')
-            ax1.set_ylabel('Time (s)')
-            ax1.tick_params(axis='x', rotation=45)
+            ax1.set_title("Execution Time")
+            ax1.set_xlabel("Algorithm")
+            ax1.set_ylabel("Time (s)")
+            ax1.tick_params(axis="x", rotation=45)
             print("Execution time plot created")
         except Exception as e:
             print(f"Error creating execution time plot: {e}")
@@ -175,10 +183,10 @@ class GraphColoringComparator:
         # Plot memory usage
         try:
             sns.barplot(x=names, y=memory, ax=ax2)
-            ax2.set_title('Memory Usage')
-            ax2.set_xlabel('Algorithm')
-            ax2.set_ylabel('Memory (MB)')
-            ax2.tick_params(axis='x', rotation=45)
+            ax2.set_title("Memory Usage")
+            ax2.set_xlabel("Algorithm")
+            ax2.set_ylabel("Memory (MB)")
+            ax2.tick_params(axis="x", rotation=45)
             print("Memory usage plot created")
         except Exception as e:
             print(f"Error creating memory usage plot: {e}")
@@ -186,10 +194,10 @@ class GraphColoringComparator:
         # Plot solution quality
         try:
             sns.barplot(x=names, y=conflicts, ax=ax3)
-            ax3.set_title('Solution Quality')
-            ax3.set_xlabel('Algorithm')
-            ax3.set_ylabel('Conflicts')
-            ax3.tick_params(axis='x', rotation=45)
+            ax3.set_title("Solution Quality")
+            ax3.set_xlabel("Algorithm")
+            ax3.set_ylabel("Conflicts")
+            ax3.tick_params(axis="x", rotation=45)
             print("Solution quality plot created")
         except Exception as e:
             print(f"Error creating solution quality plot: {e}")
@@ -199,9 +207,9 @@ class GraphColoringComparator:
 
         # Save plot
         try:
-            plot_path = self.output_dir / 'comparison.png'
+            plot_path = self.output_dir / "comparison.png"
             print(f"Saving plot to: {plot_path}")
-            plt.savefig(plot_path, dpi=300, bbox_inches='tight')
+            plt.savefig(plot_path, dpi=300, bbox_inches="tight")
             plt.close(fig)
             print("Plot saved successfully")
         except Exception as e:
@@ -217,9 +225,9 @@ class GraphColoringComparator:
         results_dict = {
             "graph_info": {
                 "nodes": len(self.results[0].coloring),
-                "timestamp": time.strftime("%Y%m%d-%H%M%S")
+                "timestamp": time.strftime("%Y%m%d-%H%M%S"),
             },
-            "algorithms": []
+            "algorithms": [],
         }
 
         # Convert enum values to strings in parameters
@@ -237,52 +245,37 @@ class GraphColoringComparator:
                 "execution_time": result.execution_time,
                 "memory_usage": result.memory_usage,
                 "conflicts": result.conflicts,
-                "attempts": result.attempts
+                "attempts": result.attempts,
             }
             results_dict["algorithms"].append(algorithm_data)
 
             # Save JSON results
-        json_path = self.output_dir / 'results.json'
+        json_path = self.output_dir / "results.json"
         print(f"Saving results to: {json_path}")
-        with open(json_path, 'w') as f:
+        with open(json_path, "w") as f:
             json.dump(results_dict, f, indent=4)
         print("Results saved to JSON")
 
         # Generate and save plots
         self.plot_comparisons()
-        plt.close('all')  # Close all figures to free memory
+        plt.close("all")  # Close all figures to free memory
         print("Plots generated and saved")
+
 
 def main():
     # Base configuration for all algorithms
-    base_params = {
-        "max_iterations": 100,
-        "max_colors": 5
-    }
+    base_params = {"max_iterations": 100, "max_colors": 5}
 
     algorithms_config = [
-        {
-            "name": "Brute Force",
-            "params": {
-                "max_colors": base_params["max_colors"]
-            }
-        },
-        {
-            "name": "Hill Climbing",
-            "params": {}
-        },
+        {"name": "Brute Force", "params": {"max_colors": base_params["max_colors"]}},
+        {"name": "Hill Climbing", "params": {}},
         {
             "name": "Stochastic HC",
-            "params": {
-                "max_iterations": base_params["max_iterations"]
-            }
+            "params": {"max_iterations": base_params["max_iterations"]},
         },
         {
             "name": "Tabu Search",
-            "params": {
-                "tabu_size": 7,
-                "max_iterations": base_params["max_iterations"]
-            }
+            "params": {"tabu_size": 7, "max_iterations": base_params["max_iterations"]},
         },
         {
             "name": "Simulated Annealing",
@@ -290,8 +283,8 @@ def main():
                 "initial_temp": 100.0,
                 "min_temp": 0.1,
                 "max_iterations": base_params["max_iterations"],
-                "schedule": CoolingSchedule.EXPONENTIAL
-            }
+                "schedule": CoolingSchedule.EXPONENTIAL,
+            },
         },
         {
             "name": "Genetic Algorithm",
@@ -301,8 +294,8 @@ def main():
                 "max_generations": base_params["max_iterations"],
                 "crossover_type": CrossoverType.UNIFORM,
                 "mutation_type": MutationType.RANDOM,
-                "termination_type": TerminationType.GENERATIONS
-            }
+                "termination_type": TerminationType.GENERATIONS,
+            },
         },
         {
             "name": "Island GA",
@@ -312,8 +305,8 @@ def main():
                 "migration_interval": 10,
                 "population_size": 50,
                 "elite_size": 5,
-                "max_generations": base_params["max_iterations"]
-            }
+                "max_generations": base_params["max_iterations"],
+            },
         },
         {
             "name": "Evolution Strategy",
@@ -322,9 +315,9 @@ def main():
                 "loss_function": "ackley",
                 "mu": 15,
                 "lambda_": 30,
-                "generations": base_params["max_iterations"]
-            }
-        }
+                "generations": base_params["max_iterations"],
+            },
+        },
     ]
 
     # Test different graph sizes
