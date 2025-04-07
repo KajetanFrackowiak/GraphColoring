@@ -1,0 +1,450 @@
+\documentclass{article}
+\usepackage{algorithm}
+\usepackage{algorithmic}
+
+\begin{document}
+
+\section*{Graph Coloring Algorithms}
+
+\textbf{Sampling Coloring:} A simple heuristic method that tries random colorings and keeps the best one found. It is fast but may not find the optimal solution.
+
+\textbf{Brute Force Coloring:} Guarantees finding the optimal solution but is computationally expensive since it explores all possible colorings.
+
+\textbf{Deterministic Hill Climbing:} Improves over random search by always selecting the best neighboring solution but can get stuck in local optima.
+
+\textbf{Stochastic Hill Climbing:} Adds randomness to avoid local optima, making it more flexible than deterministic hill climbing.
+
+\textbf{Tabu Search:} A more sophisticated approach that avoids cycling and can explore a broader solution space, but it is more complex and computationally intensive.
+
+
+% \subsection*{Sampling Coloring}
+\begin{algorithm}
+\caption{Sampling Coloring}
+\begin{algorithmic}[1]
+\REQUIRE Graph $G$, Number of Samples $n$
+\ENSURE Best Coloring, Best Loss, Attempts
+\STATE $initial\_colors \gets \frac{|nodes(G)|}{2}$
+\STATE $best\_coloring \gets generate\_random\_coloring(G, initial\_colors)$
+\STATE $best\_loss \gets calculate\_loss(G, best\_coloring)$
+\STATE $attempts \gets 0$
+\FOR{$i = 1$ to $n$}
+    \STATE $attempts \gets attempts + 1$
+    \STATE $coloring \gets generate\_random\_coloring(G, initial\_colors)$
+    \STATE $loss \gets calculate\_loss(G, coloring)$
+    \IF{$loss < best\_loss$}
+        \STATE $best\_loss \gets loss$
+        \STATE $best\_coloring \gets coloring$
+    \ENDIF
+\ENDFOR
+\RETURN $best\_coloring, best\_loss, attempts$
+\end{algorithmic}
+\end{algorithm}
+
+% \subsection{Brute Force Coloring}
+\begin{algorithm}
+\caption{Brute Force Coloring}
+\begin{algorithmic}[1]
+\REQUIRE Graph $G$, Maximum Colors $max\_colors$
+\ENSURE Best Coloring, Best Loss, Attempts
+\STATE $nodes \gets list(nodes(G))$
+\STATE $best\_coloring \gets None, best\_loss \gets \infty$
+\STATE $attempts \gets 0, min\_colors \gets 1$
+\FOR{$num\_colors = min\_colors$ to $max\_colors$}
+    \FOR{each assignment of colors to nodes}
+        \STATE $attempts \gets attempts + 1$
+        \STATE $coloring \gets map\_nodes\_to\_colors(nodes, num\_colors)$
+        \STATE $loss \gets calculate\_loss(G, coloring)$
+        \IF{$loss < best\_loss$}
+            \STATE $best\_loss \gets loss$
+            \STATE $best\_coloring \gets coloring$
+            \IF{$loss == 0$}
+                \RETURN $best\_coloring, best\_loss, attempts$
+            \ENDIF
+        \ENDIF
+    \ENDFOR
+\ENDFOR
+\RETURN $best\_coloring, best\_loss, attempts$
+\end{algorithmic}
+\end{algorithm}
+
+% \subsection*{Deterministic Hill Climbing}
+\begin{algorithm}
+\caption{Deterministic Hill Climbing}
+\begin{algorithmic}[1]
+\REQUIRE Graph $G$
+\ENSURE Best Coloring, Best Loss, Attempts
+\STATE $num\_colors \gets \frac{|nodes(G)|}{2}$
+\STATE $current \gets generate\_random\_coloring(G, num\_colors)$
+\STATE $current\_loss \gets calculate\_loss(G, current)$
+\STATE $attempts \gets 1$
+\WHILE{true}
+    \STATE $best\_neighbor \gets current$
+    \STATE $best\_neighbor\_loss \gets current\_loss$
+    \FOR{each node in $G$}
+        \FOR{each possible color}
+            \STATE $neighbor \gets change\_color(current, node, color)$
+            \STATE $neighbor\_loss \gets calculate\_loss(G, neighbor)$
+            \STATE $attempts \gets attempts + 1$
+            \IF{$neighbor\_loss < best\_neighbor\_loss$}
+                \STATE $best\_neighbor \gets neighbor$
+                \STATE $best\_neighbor\_loss \gets neighbor\_loss$
+            \ENDIF
+        \ENDFOR
+    \ENDFOR
+    \IF{$best\_neighbor\_loss \geq current\_loss$}
+        \RETURN $current, current\_loss, attempts$
+    \ENDIF
+    \STATE $current \gets best\_neighbor$
+    \STATE $current\_loss \gets best\_neighbor\_loss$
+\ENDWHILE
+\end{algorithmic}
+\end{algorithm}
+
+% \subsection*{Stochastic Hill Climbing}
+\begin{algorithm}
+\caption{Stochastic Hill Climbing}
+\begin{algorithmic}[1]
+\REQUIRE Graph $G$, Max Attempts $max\_attempts$
+\ENSURE Best Coloring, Best Loss, Attempts
+\STATE $num\_colors \gets \frac{|nodes(G)|}{2}$
+\STATE $current \gets generate\_random\_coloring(G, num\_colors)$
+\STATE $current\_loss \gets calculate\_loss(G, current)$
+\STATE $attempts \gets 1$
+\WHILE{$attempts < max\_attempts$}
+    \STATE $neighbor \gets get\_neighbor(G, current, num\_colors)$
+    \STATE $neighbor\_loss \gets calculate\_loss(G, neighbor)$
+    \STATE $attempts \gets attempts + 1$
+    \IF{$neighbor\_loss < current\_loss$}
+        \STATE $current \gets neighbor$
+        \STATE $current\_loss \gets neighbor\_loss$
+        \IF{$current\_loss == 0$}
+            \BREAK
+        \ENDIF
+    \ENDIF
+\ENDWHILE
+\RETURN $current, current\_loss, attempts$
+\end{algorithmic}
+\end{algorithm}
+
+% \subsection*{Tabu Search}
+\begin{algorithm}
+\caption{Tabu Search for Graph Coloring}
+\begin{algorithmic}[1]
+\REQUIRE Graph $G$, Tabu List Size $tabu\_size$, Max Iterations $max\_iterations$
+\ENSURE Best Coloring, Best Loss, Attempts
+\STATE $num\_colors \gets \frac{|nodes(G)|}{2}$
+\STATE $current \gets generate\_random\_coloring(G, num\_colors)$
+\STATE $current\_loss \gets calculate\_loss(G, current)$
+\STATE $best\_solution \gets current$
+\STATE $best\_loss \gets current\_loss$
+\STATE $tabu\_list \gets []$
+\STATE $attempts \gets 1$
+\WHILE{$attempts < max\_iterations$ and $current\_loss > 0$}
+    \STATE $best\_neighbor \gets None$
+    \STATE $best\_neighbor\_loss \gets \infty$
+    \STATE $best\_move \gets None$
+    
+    \FOR{each node in nodes($G$)}
+        \FOR{each color in range($num\_colors$)}
+            \IF{color $\neq$ current[node]}
+                \STATE $move \gets (node, current[node], color)$
+                \IF{$move \notin$ tabu\_list}
+                    \STATE $neighbor \gets current.copy()$
+                    \STATE $neighbor[node] \gets color$
+                    \STATE $neighbor\_loss \gets calculate\_loss(G, neighbor)$
+                    \STATE $attempts \gets attempts + 1$
+                    \IF{$neighbor\_loss < best\_neighbor\_loss$}
+                        \STATE $best\_neighbor \gets neighbor$
+                        \STATE $best\_neighbor\_loss \gets neighbor\_loss$
+                        \STATE $best\_move \gets move$
+                    \ENDIF
+                \ENDIF
+            \ENDIF
+        \ENDFOR
+    \ENDFOR
+    
+    \IF{$best\_neighbor \neq None$}
+        \STATE $current \gets best\_neighbor$
+        \STATE $current\_loss \gets best\_neighbor\_loss$
+        
+        \IF{$current\_loss < best\_loss$}
+            \STATE $best\_solution \gets current$
+            \STATE $best\_loss \gets current\_loss$
+        \ENDIF
+        
+        \STATE $tabu\_list \gets tabu\_list + [best\_move]$
+        \IF{length of $tabu\_list$ > $tabu\_size$}
+            \STATE $tabu\_list.pop(0)$
+        \ENDIF
+    \ELSE
+        \STATE \textbf{BREAK}
+    \ENDIF
+\ENDWHILE
+\RETURN $best\_solution, best\_loss, attempts$
+\end{algorithmic}
+\end{algorithm}
+
+% \subsection*{Simulated Annealing}
+\begin{algorithm}
+\caption{Simulated Annealing for Graph Coloring}
+\begin{algorithmic}[1]
+\REQUIRE Graph $G$, Initial Temperature $initial\_temp$, Minimum Temperature $min\_temp$, Max Iterations $max\_iterations$, Cooling Schedule $schedule$
+\ENSURE Best Coloring, Best Loss, Attempts
+\STATE $num\_colors \gets \frac{|nodes(G)|}{2}$
+\STATE $current \gets generate\_random\_coloring(G, num\_colors)$
+\STATE $current\_loss \gets calculate\_loss(G, current)$
+\STATE $best\_solution \gets current$
+\STATE $best\_loss \gets current\_loss$
+\STATE $temperature \gets initial\_temp$
+\STATE $attempts \gets 1$
+\WHILE{$temperature > min\_temp$ and $attempts < max\_iterations$ and $current\_loss > 0$}
+    \STATE $neighbor \gets get\_gaussian\_neighbor(G, current, num\_colors)$
+    \STATE $neighbor\_loss \gets calculate\_loss(G, neighbor)$
+    \STATE $attempts \gets attempts + 1$
+    
+    \STATE $delta \gets neighbor\_loss - current\_loss$
+    \IF{$delta < 0$ or random() < exp(-delta / temperature)}
+        \STATE $current \gets neighbor$
+        \STATE $current\_loss \gets neighbor\_loss$
+        
+        \IF{$current\_loss < best\_loss$}
+            \STATE $best\_solution \gets current$
+            \STATE $best\_loss \gets current\_loss$
+        \ENDIF
+    \ENDIF
+    
+    \STATE $temperature \gets get\_temperature(initial\_temp, attempts, max\_iterations, schedule)$
+\ENDWHILE
+\RETURN $best\_solution, best\_loss, attempts$
+\end{algorithmic}
+\end{algorithm}
+
+% \subsection*{Genetic Algorithm for Graph Coloring}
+\begin{algorithm}
+\caption{Genetic Algorithm for Graph Coloring}
+\begin{algorithmic}[1]
+\REQUIRE Graph $G$, Population Size $population\_size$, Elite Size $elite\_size$, Max Generations $max\_generations$, Crossover Type $crossover\_type$, Mutation Type $mutation\_type$, Termination Type $termination\_type$
+\ENSURE Best Coloring, Best Loss, Attempts
+\STATE $num\_colors \gets \frac{|nodes(G)|}{2}$
+\STATE $population \gets generate\_initial\_population(G, population\_size, num\_colors)$
+\STATE $attempts \gets population\_size$
+\STATE $best\_solution \gets \text{max}(population, \text{key fitness})$
+\STATE $generation \gets 0$
+\WHILE{termination condition not met}
+    \STATE Sort $population$ by fitness in descending order
+    \IF{$best\_solution.fitness = 0$}
+        \RETURN $best\_solution.coloring, 0, attempts$
+    \ENDIF
+    \IF{termination type is generations and $generation \geq max\_generations$}
+        \RETURN $best\_solution.coloring, -best\_solution.fitness, attempts$
+    \ENDIF
+
+    \STATE $new\_population \gets population[:elite\_size]$
+    \WHILE{size of $new\_population < population\_size$}
+        \STATE $parent1, parent2 \gets \text{select parents from top half of population}$
+        \IF{$crossover\_type = CrossoverType.UNIFORM$}
+            \STATE $child1, child2 \gets uniform\_crossover(parent1, parent2)$
+        \ELSE
+            \STATE $child1, child2 \gets single\_point\_crossover(parent1, parent2)$
+        \ENDIF
+
+        \IF{$mutation\_type = MutationType.RANDOM$}
+            \STATE $child1 \gets random\_mutation(child1, num\_colors)$
+            \STATE $child2 \gets random\_mutation(child2, num\_colors)$
+        \ELSE
+            \STATE $child1 \gets swap\_mutation(child1)$
+            \STATE $child2 \gets swap\_mutation(child2)$
+        \ENDIF
+
+        \STATE $fitness1 \gets -calculate\_loss(G, child1)$
+        \STATE $fitness2 \gets -calculate\_loss(G, child2)$
+        \STATE $attempts \gets attempts + 2$
+        \STATE Add $child1, child2$ to $new\_population$
+
+        \IF{$fitness1 = 0$ or $fitness2 = 0$}
+            \RETURN best solution with fitness 0, $best\_solution.coloring, 0, attempts$
+        \ENDIF
+    \ENDWHILE
+
+    \STATE Update population to $new\_population$
+    \STATE $best\_solution \gets \text{max}(population, \text{key fitness})$
+    \STATE $generation \gets generation + 1$
+\ENDWHILE
+\RETURN $best\_solution.coloring, -best\_solution.fitness, attempts$
+\end{algorithmic}
+\end{algorithm}
+
+\begin{algorithm}
+\caption{Parallel Genetic Algorithm for Graph Coloring}
+\begin{algorithmic}[1]
+\REQUIRE Graph $G$, Population Size $population\_size$, Elite Size $elite\_size$, Max Generations $max\_generations$, Crossover Type $crossover\_type$, Mutation Type $mutation\_type$, Termination Type $termination\_type$, Number of Processes $num\_processes$
+\ENSURE Best Coloring, Best Loss, Attempts
+\STATE $num\_colors \gets \frac{|nodes(G)|}{2}$
+\STATE $attempts \gets 0$
+\IF{$num\_processes$ is None}
+    \STATE $num\_processes \gets cpu\_count()$
+\ENDIF
+
+\STATE \textbf{INITIALIZE multiprocessing pool with} $num\_processes$
+\STATE $coloring \gets [generate\_random\_coloring(G, num\_colors)$ for $i = 1$ to $population\_size]$
+\STATE $fitnesses \gets evaluate\_population\_parallel(G, coloring, pool)$
+\STATE $attempts \gets attempts + population\_size$
+\STATE $population \gets [Individual(c, f)$ for $c, f$ in $zip(coloring, fitnesses)]$
+\STATE $best\_solution \gets \max(population, \text{key} = \lambda x: x.fitness)$
+\STATE $generation \gets 0$
+
+\WHILE{termination condition not met}
+    \STATE SORT $population$ by fitness in descending order
+    \IF{$best\_solution.fitness = 0$}
+        \STATE \RETURN $best\_solution.coloring, 0, attempts$
+    \ENDIF
+    \IF{$termination\_type = TerminationType.GENERATIONS$ and $generation \geq max\_generations$}
+        \STATE \RETURN $best\_solution.coloring, -best\_solution.fitness, attempts$
+    \ENDIF
+
+    \STATE $new\_population \gets population[:elite\_size]$
+    \STATE $offspring\_colorings \gets []$
+    \WHILE{$|new\_population| + |offspring\_colorings| / 2 < population\_size$}
+        \STATE $parent1, parent2 \gets random.sample(population[:population\_size / 2], 2)$
+        \IF{$crossover\_type = CrossoverType.UNIFORM$}
+            \STATE $child1, child2 \gets uniform\_crossover(parent1, parent2)$
+        \ELSE
+            \STATE $child1, child2 \gets single\_point\_crossover(parent1, parent2)$
+        \ENDIF
+
+        \IF{$mutation\_type = MutationType.RANDOM$}
+            \STATE $child1 \gets random\_mutation(child1, num\_colors)$
+            \STATE $child2 \gets random\_mutation(child2, num\_colors)$
+        \ELSE
+            \STATE $child1 \gets swap\_mutation(child1)$
+            \STATE $child2 \gets swap\_mutation(child2)$
+        \ENDIF
+        \STATE $offspring\_colorings.append(child1, child2)$
+    \ENDWHILE
+
+    \STATE $offspring\_fitnesses \gets evaluate\_population\_parallel(G, offspring\_colorings, pool)$
+    \STATE $attempts \gets attempts + |offspring\_fitnesses|$
+
+    \FOR{$i = 0$ to $|offspring\_colorings| - 1$ step 2}
+        \STATE $child1\_coloring \gets offspring\_colorings[i]$
+        \STATE $child2\_coloring \gets offspring\_colorings[i + 1]$
+        \STATE $child1\_fitness \gets offspring\_fitnesses[i]$
+        \STATE $child2\_fitness \gets offspring\_fitnesses[i + 1]$
+        \IF{$child1\_fitness = 0$ or $child2\_fitness = 0$}
+            \STATE $best\_coloring \gets child1\_coloring$ if $child1\_fitness = 0$ else $child2\_coloring$
+            \STATE \RETURN $best\_coloring, 0, attempts$
+        \ENDIF
+        \STATE $new\_population.append(Individual(child1\_coloring, child1\_fitness))$
+        \STATE $new\_population.append(Individual(child2\_coloring, child2\_fitness))$
+    \ENDFOR
+
+    \STATE $population \gets new\_population[:population\_size]$
+    \STATE $current\_best \gets \max(population, \text{key} = \lambda x: x.fitness)$
+    \IF{$current\_best.fitness > best\_solution.fitness$}
+        \STATE $best\_solution \gets current\_best$
+    \ENDIF
+    \STATE $generation \gets generation + 1$
+\ENDWHILE
+\STATE \RETURN $best\_solution.coloring, -best\_solution.fitness, attempts$
+\end{algorithmic}
+\end{algorithm}
+
+\begin{algorithm}
+    \caption{Island Model Genetic Algorithm for Graph Coloring}
+    \begin{algorithmic}[1]
+    \REQUIRE Graph $G$, Number of Islands $num\_islands$, Migration Rate $migration\_rate$, Migration Interval $migration\_interval$, Population Size $population\_size$, Elite Size $elite\_size$, Max Generations $max\_generations$, Crossover Type $crossover\_type$, Mutation Type $mutation\_type$, Termination Type $termination\_type$, Number of Processes $num\_processes$
+    \ENSURE Best Coloring, Best Loss, Attempts
+    \STATE $num\_colors \gets \frac{|nodes(G)|}{2}$
+    \STATE $attempts \gets 0$
+    \STATE $island\_size \gets \frac{population\_size}{num\_islands}$
+    \IF{$num\_processes$ is None}
+        \STATE $num\_processes \gets cpu\_count()$
+    \ENDIF
+    
+    \STATE \textbf{INITIALIZE multiprocessing pool with} $num\_processes$
+    \STATE \textbf{INITIALIZE islands} with $num\_islands$ each having $island\_size$ individuals
+    \FOR{each island $i$}
+        \STATE $coloring \gets [generate\_random\_coloring(G, num\_colors)$ for $i = 1$ to $island\_size]$
+        \STATE $fitnesses \gets evaluate\_population\_parallel(G, coloring, pool)$
+        \STATE $attempts \gets attempts + island\_size$
+        \STATE $population \gets [Individual(c, f)$ for $c, f$ in $zip(coloring, fitnesses)]$
+        \STATE $islands.append(population)$
+    \ENDFOR
+    
+    \STATE $best\_solution \gets \max(\max(island, \text{key} = \lambda x: x.fitness) \text{ for each island in } islands)$
+    \STATE $generation \gets 0$
+    
+    \WHILE{termination condition not met}
+        \FOR{each island $i$}
+            \STATE SORT $islands[i]$ by fitness in descending order
+            \STATE $current\_best \gets \max(islands[i], \text{key} = \lambda x: x.fitness)$
+            \IF{$current\_best.fitness > best\_solution.fitness$}
+                \STATE $best\_solution \gets current\_best$
+            \ENDIF
+    
+            \IF{$best\_solution.fitness = 0$}
+                \STATE \RETURN $best\_solution.coloring, 0, attempts$
+            \ENDIF
+            \IF{$termination\_type = TerminationType.GENERATIONS$ and $generation \geq max\_generations$}
+                \STATE \RETURN $best\_solution.coloring, -best\_solution.fitness, attempts$
+            \ENDIF
+    
+            \STATE $new\_population \gets islands[i][:elite\_size]$
+            \STATE $offspring\_colorings \gets []$
+            \WHILE{$|new\_population| + |offspring\_colorings| / 2 < island\_size$}
+                \STATE $parent1, parent2 \gets random.sample(islands[i][:island\_size / 2], 2)$
+                \IF{$crossover\_type = CrossoverType.UNIFORM$}
+                    \STATE $child1, child2 \gets uniform\_crossover(parent1, parent2)$
+                \ELSE
+                    \STATE $child1, child2 \gets single\_point\_crossover(parent1, parent2)$
+                \ENDIF
+    
+                \IF{$mutation\_type = MutationType.RANDOM$}
+                    \STATE $child1 \gets random\_mutation(child1, num\_colors)$
+                    \STATE $child2 \gets random\_mutation(child2, num\_colors)$
+                \ELSE
+                    \STATE $child1 \gets swap\_mutation(child1)$
+                    \STATE $child2 \gets swap\_mutation(child2)$
+                \ENDIF
+                \STATE $offspring\_colorings.append(child1, child2)$
+            \ENDWHILE
+    
+            \STATE $offspring\_fitnesses \gets evaluate\_population\_parallel(G, offspring\_colorings, pool)$
+            \STATE $attempts \gets attempts + |offspring\_fitnesses|$
+    
+            \FOR{$i = 0$ to $|offspring\_colorings| - 1$ step 2}
+                \STATE $child1\_coloring \gets offspring\_colorings[i]$
+                \STATE $child2\_coloring \gets offspring\_colorings[i + 1]$
+                \STATE $child1\_fitness \gets offspring\_fitnesses[i]$
+                \STATE $child2\_fitness \gets offspring\_fitnesses[i + 1]$
+                \IF{$child1\_fitness = 0$ or $child2\_fitness = 0$}
+                    \STATE $best\_coloring \gets child1\_coloring$ if $child1\_fitness = 0$ else $child2\_coloring$
+                    \STATE \RETURN $best\_coloring, 0, attempts$
+                \ENDIF
+                \STATE $new\_population.append(Individual(child1\_coloring, child1\_fitness))$
+                \STATE $new\_population.append(Individual(child2\_coloring, child2\_fitness))$
+            \ENDFOR
+    
+            \STATE $islands[i] \gets new\_population[:island\_size]$
+        \ENDFOR
+    
+        \STATE \textbf{MIGRATION PHASE}
+        \IF{$generation > 0$ and $generation \mod migration\_interval = 0$}
+            \STATE $migrants\_per\_island \gets \lfloor island\_size \times migration\_rate \rfloor$
+            \FOR{each island $i$}
+                \STATE $migrants \gets islands[i][:migrants\_per\_island]$
+                \STATE $next\_island \gets (i + 1) \mod num\_islands$
+                \STATE $replace\_indices \gets random.sample(range(island\_size), migrants\_per\_island)$
+                \FOR{each index $idx$ in $replace\_indices$}
+                    \STATE $islands[next\_island][idx] \gets migrants[idx]$
+                \ENDFOR
+            \ENDFOR
+        \ENDIF
+    
+        \STATE $generation \gets generation + 1$
+    \ENDWHILE
+    \STATE \RETURN $best\_solution.coloring, -best\_solution.fitness, attempts$
+    \end{algorithmic}
+    \end{algorithm}
+
+\end{document}
