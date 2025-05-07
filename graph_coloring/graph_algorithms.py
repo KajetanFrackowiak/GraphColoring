@@ -45,7 +45,9 @@ def brute_force_coloring(
     attempts = 0
     min_colors = 1  # Start from minimum possible colors
 
+    # Try coloring the graph with min_colors to max_colors
     for num_colors in range(min_colors, max_colors + 1):
+        # Try all combinations
         for colors in product(range(num_colors), repeat=len(nodes)):
             attempts += 1
             coloring = dict(zip(nodes, colors))
@@ -206,6 +208,7 @@ def get_gaussian_neighbor(
 
     # Use Gaussian distribution centered around current color
     new_color = int(round(random.gauss(current_color, std_dev))) % num_colors
+    # Change existing node to some new one
     neighbor[node] = new_color
     return neighbor
 
@@ -280,7 +283,8 @@ def uniform_crossover(
     """Uniform crossover between two parents"""
     child1 = parent1.coloring.copy()
     child2 = parent2.coloring.copy()
-
+    
+    # Cross each node instead of from some point only (to cross, random value must be greather then crossover_rate)
     for node in child1.keys():
         if random.random() < crossover_rate:
             child1[node], child2[node] = child2[node], child1[node]
@@ -298,6 +302,7 @@ def single_point_crossover(
     child1 = parent1.coloring.copy()
     child2 = parent2.coloring.copy()
 
+    # Cross from some point all children, without random possibility on crossing
     for node in nodes[point:]:
         child1[node], child2[node] = child2[node], child1[node]
 
@@ -311,6 +316,7 @@ def random_mutation(
     mutated = coloring.copy()
     for node in mutated:
         if random.random() < mutation_rate:
+            # Change node on some other random node from pull of possible colors
             mutated[node] = random.randint(0, num_colors - 1)
     return mutated
 
@@ -323,7 +329,8 @@ def swap_mutation(
     nodes = list(mutated.keys())
 
     if random.random() < mutation_rate and len(nodes) >= 2:
-        i, j = random.sample(nodes, 2)
+        # Take some random formation of nodes
+        i, j = random.sample(population=nodes, k=2)
         mutated[i], mutated[j] = mutated[j], mutated[i]
     return mutated
 
@@ -347,7 +354,8 @@ def genetic_algorithm(
         coloring = generate_random_coloring(graph, num_colors)
         fitness = -calculate_loss(
             graph, coloring
-        )  # Negative because bigger fitness means better, and we want to minimalize loss, so we use negative loss
+        )  # Negative, because lower loss means better, and bigger fitness means better, we want to minimalize loss
+            # and to maximize fitness so we invert the loss
         attempts += 1  # Count initial population evaluations
         population.append(Individual(coloring, fitness))
 
@@ -355,7 +363,7 @@ def genetic_algorithm(
 
     generation = 0
     while True:
-        # Sort population by fitness
+        # Sort population by fitness, bigger fitness means better, so we want to sort in desc
         population.sort(key=lambda x: x.fitness, reverse=True)
 
         # Early stopping conditions
@@ -369,6 +377,7 @@ def genetic_algorithm(
 
         # Create new population
         new_population = []
+        # Stay only elite from population (natural selection) 
         new_population.extend(population[:elite_size])
 
         # Create offspring until population is filled
@@ -500,7 +509,7 @@ def parallel_genetic_algorithm(
 
                 offspring_colorings.extend([child1, child2])
 
-            # Parallel fitness evaluation
+            # offspring_fitnesses and offspring_colorings are separeted, because offspring_fitnesses is in parallel and the second not
             offspring_fitnesses = evaluate_population_parallel(
                 graph, offspring_colorings, pool
             )
@@ -510,6 +519,7 @@ def parallel_genetic_algorithm(
             for i in range(0, len(offspring_colorings), 2):
                 child1_coloring = offspring_colorings[i]
                 child2_coloring = offspring_colorings[i + 1]
+                # In parallel, because loss calculating is time-consuming
                 child1_fitness = offspring_fitnesses[i]
                 child2_fitness = offspring_fitnesses[i + 1]
 
@@ -539,7 +549,7 @@ def parallel_genetic_algorithm(
 
         return best_solution.coloring, -best_solution.fitness, attempts
 
-
+# Algorytm genetyczny - wersja wyspowa (Heuristic)
 def island_genetic_algorithm(
     graph: nx.Graph,
     num_islands: int = 4,
@@ -571,9 +581,12 @@ def island_genetic_algorithm(
             fitnesses = evaluate_population_parallel(graph, colorings, pool)
             attempts += island_size
             population = [Individual(c, f) for c, f in zip(colorings, fitnesses)]
+            # Each island contain many individuals (population)
+            # with Individual.coloring Dict[int, int], Individual.fitness
             islands.append(population)
 
-        # Track best solution across all islands
+        # Inner max takes best Individual from each island
+        # Outer max takes best Individual from all best Individuals
         best_solution = max(
             (max(island, key=lambda x: x.fitness) for island in islands),
             key=lambda x: x.fitness,
@@ -583,9 +596,9 @@ def island_genetic_algorithm(
         while True:
             # Process each island
             for i in range(num_islands):
+                # Descending, because bigger x.fitness is better
                 islands[i].sort(key=lambda x: x.fitness, reverse=True)
 
-                # Early stopping conditions
                 current_best = max(islands[i], key=lambda x: x.fitness)
                 if current_best.fitness > best_solution.fitness:
                     best_solution = current_best.copy()
@@ -597,15 +610,22 @@ def island_genetic_algorithm(
                     termination_type == TerminationType.GENERATIONS
                     and generation >= max_generations
                 ):
+                    # Because the algorithm is to maximize fitness, and we wanted to minimize graph,
+                    # so we find max fintess and return with minus sign as best
                     return best_solution.coloring, -best_solution.fitness, attempts
 
                 # Create new population for island
                 new_population = []
+                # Stays only elite
                 new_population.extend(islands[i][:elite_size])
 
                 # Create offspring list for parallel evaluation
                 offspring_colorings = []
+                
+                # the condition ensures that when generatng offspring, the total population size
+                # (existing individuals + new offspring (since each pair produces two offspring) does not exceed this island capacity
                 while len(new_population) + len(offspring_colorings) // 2 < island_size:
+                    # Pick 2 parents from the top half of the current island's population
                     parent1, parent2 = random.sample(islands[i][: island_size // 2], 2)
 
                     if crossover_type == CrossoverType.UNIFORM:

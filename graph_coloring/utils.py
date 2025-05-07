@@ -14,6 +14,7 @@ def calculate_loss(graph: nx.Graph, coloring: Dict[int, int]) -> int:
 
 def generate_random_coloring(graph: nx.Graph, num_colors: int) -> Dict[int, int]:
     """Generate random coloring using num_colors colors"""
+    # Using random.randint(0, num_colors) would give possible num_colors + 1
     return {node: random.randint(0, num_colors - 1) for node in graph.nodes()}
 
 
@@ -24,7 +25,7 @@ def get_neighbor(
     new_coloring = coloring.copy()
     node = random.choice(list(graph.nodes()))
     available_colors = list(range(num_colors))
-    # Remove the node's color from the color pool to not choose again the same
+    # Remove the node's color from the color pool to not choose randomly some new from available colors
     available_colors.remove(coloring[node])
     new_coloring[node] = random.choice(available_colors)
     return new_coloring
