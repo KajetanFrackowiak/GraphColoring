@@ -64,7 +64,7 @@ def evolutionary_strategy(pop_size, dimensions, generations, func):
 
         # Reproduction (mutation)
         new_population = []
-        for individual in best_individuals:  # Loop over each of teh best individuals
+        for individual in best_individuals:  # Loop over each of the best individuals
             # pop_size is the total number of  individuals I want in the new population
             for _ in range(pop_size // len(best_individuals)):  # Repeat for each "best individual"
                 new_population.append(mutate(individual))

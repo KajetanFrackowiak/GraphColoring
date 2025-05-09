@@ -1,10 +1,8 @@
-# main.py
 import queue
 import time
 import networkx as nx
 import argparse
 
-from graph_coloring.server import create_island_server
 from graph_coloring.graph_algorithms import (
     sampling_coloring,
     brute_force_coloring,
@@ -18,8 +16,7 @@ from graph_coloring.graph_algorithms import (
     TerminationType,
     genetic_algorithm,
     parallel_genetic_algorithm,
-    island_genetic_algorithm,
-    evolution_strategy,
+    island_genetic_algorithm, 
 )
 from graph_coloring.visualization import generate_chart
 
@@ -38,7 +35,6 @@ if __name__ == "__main__":
         "7: Genetic Algorithm\n"
         "8: Parallel Genetic Algorithm\n"
         "9: Island Genetic Algorithm\n"
-        "11: Evolution Strategy",
         required=True,
     )
     parser.add_argument("--nodes", type=int, default=10)
@@ -168,44 +164,7 @@ if __name__ == "__main__":
             num_processes=args.num_processes,
         )
         alg_end = time.perf_counter()
-    elif args.algorithm == 9:  # Island GA
-        alg_start = time.perf_counter()
-        crossover = CrossoverType(args.crossover)
-        mutation = MutationType(args.mutation)
-        termination = TerminationType(args.termination)
-
-        if args.distributed:
-            # Distributed version setup code here
-            island_queue = queue.Queue()
-            server = create_island_server(args.port, island_queue)
-            server.serve_forever()
-        else:
-            alg_start = time.perf_counter()
-            coloring, loss, attempts = island_genetic_algorithm(
-                G,
-                num_islands=args.num_islands,
-                migration_rate=args.migration_rate,
-                migration_interval=args.migration_interval,
-                population_size=args.population_size,
-                elite_size=args.elite_size,
-                max_generations=args.samples,
-                crossover_type=crossover,
-                mutation_type=mutation,
-                termination_type=termination,
-                num_processes=args.num_processes,
-            )
-            alg_end = time.perf_counter()
-    elif args.algorithm == 11:  # Evolution Strategy
-        alg_start = time.perf_counter()
-        coloring, loss, attempts = evolution_strategy(
-            G,
-            num_colors=args.max_colors,
-            loss_function=args.loss_function,
-            mu=args.es_mu,
-            lambda_=args.es_lambda,
-            generations=args.samples,
-        )
-        alg_end = time.perf_counter()
+   
 
     print(f"Attempts: {attempts}")
     print(f"Number of conflicts: {loss}")

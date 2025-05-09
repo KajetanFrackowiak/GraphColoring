@@ -1,21 +1,16 @@
 from enum import Enum
 
 import networkx as nx
-import numpy as np
-import pandas as pd
-import matplotlib.pyplot as plt
-import seaborn as sns
 import time
 import psutil
 import json
-from typing import Dict, List, Tuple
+from typing import Dict, List
 from dataclasses import dataclass
 from pathlib import Path
 import matplotlib.pyplot as plt
 import seaborn as sns
 
 from graph_coloring.graph_algorithms import (
-    sampling_coloring,
     brute_force_coloring,
     deterministic_hill_climbing,
     stochastic_hill_climbing,
@@ -23,11 +18,10 @@ from graph_coloring.graph_algorithms import (
     simulated_annealing,
     genetic_algorithm,
     island_genetic_algorithm,
-    evolution_strategy,
     CrossoverType,
     MutationType,
     TerminationType,
-    CoolingSchedule,
+    CoolingSchedule, sampling_coloring,
 )
 
 
@@ -44,12 +38,13 @@ class AlgorithmResult:
 
 
 class GraphColoringComparator:
-    def __init__(self, output_dir: str = "results"):
+    def __init__(self, output_dir: str = "results", max_time: int = 60):
         self.output_dir = Path(output_dir)
         print(f"Creating directory: {self.output_dir}")
         self.output_dir.mkdir(parents=True, exist_ok=True)
         self.results = []
         self.convergence_data = {}
+        self.max_time = max_time
 
     def measure_memory(self) -> float:
         return psutil.Process().memory_info().rss / 1024 / 1024
@@ -57,73 +52,124 @@ class GraphColoringComparator:
     def run_experiment(self, G: nx.Graph, algorithms_config: List[Dict]) -> None:
         for config in algorithms_config:
             print(f"Running {config['name']}...")
-            start_memory = self.measure_memory()
+            print(f"Maximum allowed time: {self.max_time} seconds")
+            initial_memory = self.measure_memory()
+            peak_memory = initial_memory
             start_time = time.perf_counter()
             convergence = []
-            max_time = 60  # 60 seconds timeout
 
             try:
-                if config["name"] == "Brute Force":
-                    coloring, conflicts, attempts = brute_force_coloring(
-                        G, config["params"]["max_colors"]
-                    )
-                elif config["name"] == "Hill Climbing":
-                    coloring, conflicts, attempts = deterministic_hill_climbing(G)
-                elif config["name"] == "Stochastic HC":
-                    coloring, conflicts, attempts = stochastic_hill_climbing(
-                        G, config["params"]["max_iterations"]
-                    )
-                elif config["name"] == "Tabu Search":
-                    coloring, conflicts, attempts = tabu_search(
-                        G,
-                        config["params"]["tabu_size"],
-                        config["params"]["max_iterations"],
-                    )
-                elif config["name"] == "Simulated Annealing":
-                    coloring, conflicts, attempts = simulated_annealing(
-                        G,
-                        config["params"]["initial_temp"],
-                        config["params"]["min_temp"],
-                        config["params"]["max_iterations"],
-                        config["params"]["schedule"],
-                    )
-                elif config["name"] == "Genetic Algorithm":
-                    coloring, conflicts, attempts = genetic_algorithm(
-                        G,
-                        population_size=config["params"]["population_size"],
-                        elite_size=config["params"]["elite_size"],
-                        max_generations=config["params"]["max_generations"],
-                        crossover_type=config["params"]["crossover_type"],
-                        mutation_type=config["params"]["mutation_type"],
-                        termination_type=config["params"]["termination_type"],
-                    )
-                elif config["name"] == "Island GA":
-                    coloring, conflicts, attempts = island_genetic_algorithm(
-                        G,
-                        num_islands=config["params"]["num_islands"],
-                        migration_rate=config["params"]["migration_rate"],
-                        migration_interval=config["params"]["migration_interval"],
-                        population_size=config["params"]["population_size"],
-                        elite_size=config["params"]["elite_size"],
-                        max_generations=config["params"]["max_generations"],
-                    )
-                elif config["name"] == "Evolution Strategy":
-                    coloring, conflicts, attempts = evolution_strategy(
-                        G,
-                        num_colors=config["params"]["num_colors"],
-                        loss_function=config["params"]["loss_function"],
-                        mu=config["params"]["mu"],
-                        lambda_=config["params"]["lambda_"],
-                        generations=config["params"]["generations"],
-                    )
+                # Use multiprocessing to enforce timeout
+                from multiprocessing import Process, Manager
 
-                if time.perf_counter() - start_time > max_time:
-                    print(f"Timeout for {config['name']}")
-                    continue
+                # Create a manager to share data between processes
+                with Manager() as manager:
+                    result_dict = manager.dict()
+                    result_dict["coloring"] = None
+                    result_dict["conflicts"] = None
+                    result_dict["attempts"] = None
+                    result_dict["completed"] = False
+
+                    # Define the function to run the algorithm
+                    def run_algorithm(G, config, result_dict):
+                        try:
+                            if config["name"] == "Sampling Coloring":
+                                coloring, conflicts, attempts = sampling_coloring(G, config["params"]["n_samples"])
+                            elif config["name"] == "Brute Force":
+                                coloring, conflicts, attempts = brute_force_coloring(
+                                    G, config["params"]["max_colors"]
+                                )
+                            elif config["name"] == "Deterministic Hill Climbing":
+                                coloring, conflicts, attempts = deterministic_hill_climbing(G)
+                            elif config["name"] == "Stochastic Hill Climbing":
+                                coloring, conflicts, attempts = stochastic_hill_climbing(
+                                    G, config["params"]["max_iterations"]
+                                )
+                            elif config["name"] == "Tabu Search":
+                                coloring, conflicts, attempts = tabu_search(
+                                    G,
+                                    config["params"]["tabu_size"],
+                                    config["params"]["max_iterations"],
+                                )
+                            elif config["name"] == "Simulated Annealing":
+                                coloring, conflicts, attempts = simulated_annealing(
+                                    G,
+                                    config["params"]["initial_temp"],
+                                    config["params"]["min_temp"],
+                                    config["params"]["max_iterations"],
+                                    config["params"]["schedule"],
+                                )
+                            elif config["name"] == "Genetic Algorithm":
+                                coloring, conflicts, attempts = genetic_algorithm(
+                                    G,
+                                    population_size=config["params"]["population_size"],
+                                    elite_size=config["params"]["elite_size"],
+                                    max_generations=config["params"]["max_generations"],
+                                    crossover_type=config["params"]["crossover_type"],
+                                    mutation_type=config["params"]["mutation_type"],
+                                    termination_type=config["params"]["termination_type"],
+                                )
+                            elif config["name"] == "Parallel Genetic Algorithm":
+                                coloring, conflicts, attempts = genetic_algorithm(
+                                    G,
+                                    population_size=config["params"]["population_size"],
+                                    elite_size=config["params"]["elite_size"],
+                                    max_generations=config["params"]["max_generations"],
+                                    crossover_type=config["params"]["crossover_type"],
+                                    mutation_type=config["params"]["mutation_type"],
+                                    termination_type=config["params"]["termination_type"],
+                                    num_processes=config["params"]["num_processes"]
+                                )
+                            elif config["name"] == "Island Genetic Algorithm":
+                                coloring, conflicts, attempts = island_genetic_algorithm(
+                                    G,
+                                    num_islands=config["params"]["num_islands"],
+                                    migration_rate=config["params"]["migration_rate"],
+                                    migration_interval=config["params"]["migration_interval"],
+                                    population_size=config["params"]["population_size"],
+                                    elite_size=config["params"]["elite_size"],
+                                    max_generations=config["params"]["max_generations"],
+                                )
+
+                            # Store results in shared dictionary
+                            result_dict["coloring"] = coloring
+                            result_dict["conflicts"] = conflicts
+                            result_dict["attempts"] = attempts
+                            result_dict["completed"] = True
+                        except Exception as e:
+                            print(f"Algorithm process error: {e}")
+
+                    # Create and start the process
+                    p = Process(target=run_algorithm, args=(G, config, result_dict))
+                    p.start()
+
+                    # Wait for the process with timeout
+                    p.join(self.max_time)
+
+                    # If process is still alive after timeout, terminate it
+                    if p.is_alive():
+                        p.terminate()
+                        p.join()
+                        print(f"Timeout for {config['name']} (exceeded {self.max_time}s)")
+                        continue
+
+                    # Get the results from the process
+                    if result_dict["completed"]:
+                        coloring = result_dict["coloring"]
+                        conflicts = result_dict["conflicts"]
+                        attempts = result_dict["attempts"]
+                    else:
+                        print(f"Algorithm {config['name']} did not complete successfully")
+                        continue
+
+                # Measure final memory and calculate peak
+                final_memory = self.measure_memory()
+                peak_memory = max(peak_memory, final_memory)
+                memory_usage = peak_memory - initial_memory
 
                 execution_time = time.perf_counter() - start_time
-                memory_usage = self.measure_memory() - start_memory
 
+                # Create result
                 result = AlgorithmResult(
                     name=config["name"],
                     params=config["params"],
@@ -135,7 +181,8 @@ class GraphColoringComparator:
                     attempts=attempts,
                 )
                 self.results.append(result)
-                print(f"Finished {config['name']} in {execution_time:.2f}s")
+                print(f"Finished {config['name']} in {execution_time:.2f}s, conflicts: {conflicts}")
+                print(f"Memory: initial={initial_memory:.2f}MB, peak={peak_memory:.2f}MB, usage={memory_usage:.2f}MB")
 
             except Exception as e:
                 print(f"Error in {config['name']}: {str(e)}")
@@ -263,14 +310,21 @@ class GraphColoringComparator:
 
 
 def main():
+    n = int(input("Enter number of vertices (e.g., 120): ") or 120)
+    p = float(input("Enter edge probability (e.g., 0.4): ") or 0.4)
+    k = int(input("Enter number of colors (e.g., 3): ") or 3)
+    iters = int(input("Enter number of iterations (e.g., 100): ") or 100)
+    max_time = int(input("Enter maximum execution time in seconds (e.g., 300): ") or 300)
+
     # Base configuration for all algorithms
-    base_params = {"max_iterations": 100, "max_colors": 5}
+    base_params = {"max_iterations": iters, "max_colors": k}
 
     algorithms_config = [
+        {"name": "Sampling Coloring", "params": {"n_samples": iters}},
         {"name": "Brute Force", "params": {"max_colors": base_params["max_colors"]}},
-        {"name": "Hill Climbing", "params": {}},
+        {"name": "Deterministic Hill Climbing", "params": {}},
         {
-            "name": "Stochastic HC",
+            "name": "Stochastic Hill Climbing",
             "params": {"max_iterations": base_params["max_iterations"]},
         },
         {
@@ -298,7 +352,19 @@ def main():
             },
         },
         {
-            "name": "Island GA",
+            "name": "Parallel Genetic Algorithm",
+            "params": {
+                "population_size": 50,
+                "elite_size": 5,
+                "max_generations": base_params["max_iterations"],
+                "crossover_type": CrossoverType.UNIFORM,
+                "mutation_type": MutationType.RANDOM,
+                "termination_type": TerminationType.GENERATIONS,
+                "num_processes": 8
+            },
+        },
+        {
+            "name": "Island Genetic Algorithm",
             "params": {
                 "num_islands": 4,
                 "migration_rate": 0.1,
@@ -308,39 +374,22 @@ def main():
                 "max_generations": base_params["max_iterations"],
             },
         },
-        {
-            "name": "Evolution Strategy",
-            "params": {
-                "num_colors": base_params["max_colors"],
-                "loss_function": "ackley",
-                "mu": 15,
-                "lambda_": 30,
-                "generations": base_params["max_iterations"],
-            },
-        },
     ]
-
-    # Test different graph sizes
-    graph_sizes = [8, 10]
-    edge_probs = [0.3, 0.5]
 
     # Create results directory
     Path("results").mkdir(exist_ok=True)
 
-    for n in graph_sizes:
-        for p in edge_probs:
-            print(f"\nTesting graph with {n} nodes and {p} edge probability")
-            G = nx.erdos_renyi_graph(n, p)
+    print(f"\nTesting graph with {n} nodes and {p} edge probability")
+    G = nx.erdos_renyi_graph(n, p)
 
-            output_dir = Path(f"results/n{n}_p{p}")
-            output_dir.mkdir(parents=True, exist_ok=True)
+    output_dir = Path(f"results/n{n}_p{p}")
+    output_dir.mkdir(parents=True, exist_ok=True)
 
-            comparator = GraphColoringComparator(output_dir=str(output_dir))
-            comparator.run_experiment(G, algorithms_config)
-            comparator.save_results()
-            # comparator.plot_comparisons()
-            print(f"Results saved in: {output_dir}")
-            print(f"Plot saved as: {output_dir}/comparison.png")
+    comparator = GraphColoringComparator(output_dir=str(output_dir), max_time=max_time)
+    comparator.run_experiment(G, algorithms_config)
+    comparator.save_results()
+    print(f"Results saved in: {output_dir}")
+    print(f"Plot saved as: {output_dir}/comparison.png")
 
 
 if __name__ == "__main__":
