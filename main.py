@@ -1,10 +1,9 @@
-import queue
 import time
 import networkx as nx
 import argparse
+import sys
 
 from graph_coloring.graph_algorithms import (
-    sampling_coloring,
     brute_force_coloring,
     deterministic_hill_climbing,
     stochastic_hill_climbing,
@@ -26,17 +25,17 @@ if __name__ == "__main__":
         "--algorithm",
         type=int,
         help="Algorithm to use:\n"
-        "1: Sampling\n"
-        "2: Brute Force\n"
-        "3: Deterministic hill climbing\n"
-        "4: Stochastic hill climbing\n"
-        "5: Tabu\n"
-        "6: Cooling\n"
-        "7: Genetic Algorithm\n"
-        "8: Parallel Genetic Algorithm\n"
-        "9: Island Genetic Algorithm\n"
+        "1: Brute Force\n"
+        "2: Deterministic hill climbing\n"
+        "3: Stochastic hill climbing\n"
+        "4: Tabu\n"
+        "5: Cooling\n"
+        "6: Genetic Algorithm\n"
+        "7: Parallel Genetic Algorithm\n"
+        "8: Island Genetic Algorithm\n",
         required=True,
     )
+    parser.add_argument("--input_file", type=str, default=None)
     parser.add_argument("--nodes", type=int, default=10)
     parser.add_argument("--edge_prob", type=float, default=0.5)
     parser.add_argument("--samples", type=int, default=1000)
@@ -72,6 +71,7 @@ if __name__ == "__main__":
         choices=["generations", "fitness"],
         default="generations",
     )
+    parser.add_argument("--tournament_size", type=int, default=5)
     parser.add_argument(
         "--num_processes",
         type=int,
@@ -82,11 +82,6 @@ if __name__ == "__main__":
     parser.add_argument("--num_islands", type=int, default=4)
     parser.add_argument("--migration_rate", type=float, default=0.1)
     parser.add_argument("--migration_interval", type=int, default=10)
-    parser.add_argument(
-        "--distributed", action="store_true", help="Run in distributed mode"
-    )
-    parser.add_argument("--host", type=str, default="localhost")
-    parser.add_argument("--port", type=int, default=50000)
 
     parser.add_argument(
         "--es_mu", type=int, default=15, help="Parent population size for ES"
@@ -95,45 +90,34 @@ if __name__ == "__main__":
         "--es_lambda", type=int, default=30, help="Offspring population size for ES"
     )
 
-    parser.add_argument(
-        "--loss_function",
-        type=str,
-        choices=["ackley", "rastrigin", "rosenbrock"],
-        default="ackley",
-        help="Loss function for ES",
-    )
     args = parser.parse_args()
 
     G = nx.erdos_renyi_graph(args.nodes, args.edge_prob)
 
     if args.algorithm == 1:
         alg_start = time.perf_counter()
-        coloring, loss, attempts = sampling_coloring(G, args.samples)
+        coloring, loss, attempts = brute_force_coloring(G, args.max_colors)
         alg_end = time.perf_counter()
     elif args.algorithm == 2:
         alg_start = time.perf_counter()
-        coloring, loss, attempts = brute_force_coloring(G, args.max_colors)
+        coloring, loss, attempts = deterministic_hill_climbing(G)
         alg_end = time.perf_counter()
     elif args.algorithm == 3:
         alg_start = time.perf_counter()
-        coloring, loss, attempts = deterministic_hill_climbing(G)
+        coloring, loss, attempts = stochastic_hill_climbing(G, args.samples)
         alg_end = time.perf_counter()
     elif args.algorithm == 4:
         alg_start = time.perf_counter()
-        coloring, loss, attempts = stochastic_hill_climbing(G, args.samples)
-        alg_end = time.perf_counter()
-    elif args.algorithm == 5:
-        alg_start = time.perf_counter()
         coloring, loss, attempts = tabu_search(G, args.tabu_size)
         alg_end = time.perf_counter()
-    elif args.algorithm == 6:
+    elif args.algorithm == 5:
         alg_start = time.perf_counter()
         schedule = CoolingSchedule(args.cooling)
         coloring, loss, attempts = simulated_annealing(
             G, args.initial_temp, args.min_temp, args.samples, schedule
         )
         alg_end = time.perf_counter()
-    elif args.algorithm == 7:
+    elif args.algorithm == 6:
         alg_start = time.perf_counter()
         crossover = CrossoverType(args.crossover)
         mutation = MutationType(args.mutation)
@@ -146,9 +130,10 @@ if __name__ == "__main__":
             crossover_type=crossover,
             mutation_type=mutation,
             termination_type=termination,
+            tournament_size=args.tournament_size,
         )
         alg_end = time.perf_counter()
-    elif args.algorithm == 8:  # Parallel GA
+    elif args.algorithm == 7:  # Parallel GA
         alg_start = time.perf_counter()
         crossover = CrossoverType(args.crossover)
         mutation = MutationType(args.mutation)
@@ -162,6 +147,27 @@ if __name__ == "__main__":
             mutation_type=mutation,
             termination_type=termination,
             num_processes=args.num_processes,
+            tournament_size=args.tournament_size,
+        )
+        alg_end = time.perf_counter()
+    elif args.algorithm == 8:
+        alg_start = time.perf_counter()
+        crossover = CrossoverType(args.crossover)
+        mutation = MutationType(args.mutation)
+        termination = TerminationType(args.termination)
+        coloring, loss, attempts = island_genetic_algorithm(
+            G,
+            num_islands=args.num_islands,
+            migration_rate=args.migration_rate,
+            migration_interval=args.migration_interval,
+            population_size=args.population_size,
+            elite_size=args.elite_size,
+            max_generations=args.samples,
+            crossover_type=crossover,
+            mutation_type=mutation,
+            termination_type=termination,
+            num_processes=args.num_processes,
+            tournament_size=args.tournament_size,
         )
         alg_end = time.perf_counter()
    

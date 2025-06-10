@@ -11,29 +11,6 @@ from functools import partial
 from enum import Enum
 import numpy as np
 
-
-# Algorytm próbkowania (Heuristic)
-def sampling_coloring(
-    graph: nx.Graph, n_samples: int
-) -> Tuple[Dict[int, int], int, int]:
-    """Heuristic coloring starting with n_nodes/2 colors"""
-    initial_colors = len(graph.nodes()) // 2
-    best_coloring = generate_random_coloring(graph, initial_colors)
-    best_loss = calculate_loss(graph, best_coloring)
-    attempts = 0
-
-    for _ in range(n_samples):
-        attempts += 1
-        coloring = generate_random_coloring(graph, initial_colors)
-        loss = calculate_loss(graph, coloring)
-
-        if loss < best_loss:
-            best_loss = loss
-            best_coloring = coloring
-
-    return best_coloring, best_loss, attempts
-
-
 # Algorytm pełnego przeglądu (Deterministic)
 def brute_force_coloring(
     graph: nx.Graph, max_colors: int
@@ -42,7 +19,7 @@ def brute_force_coloring(
     nodes = list(graph.nodes())
     best_coloring = None
     best_loss = float("inf")
-    attempts = 0
+    attempts = 1
     min_colors = 1  # Start from minimum possible colors
 
     # Try coloring the graph with min_colors to max_colors
@@ -334,7 +311,16 @@ def swap_mutation(
         mutated[i], mutated[j] = mutated[j], mutated[i]
     return mutated
 
+def tournament_selection(population: List[Individual], tournament_size: int) -> Individual:
+    """Selects a parent using tournament selection."""
+    if not population:
+        raise ValueError("Population cannot be empty")
+    if tournament_size <= 0:
+        raise ValueError("Tournament size cannot be negative")
+    tournament_contenders = random.sample(population, min(tournament_size, len(population)))
+    return max(tournament_contenders, key=lambda individual: individual.fitness)
 
+# FITNESS == -LOSS
 def genetic_algorithm(
     graph: nx.Graph,
     population_size: int = 50,
@@ -343,6 +329,7 @@ def genetic_algorithm(
     crossover_type: CrossoverType = CrossoverType.UNIFORM,
     mutation_type: MutationType = MutationType.RANDOM,
     termination_type: TerminationType = TerminationType.GENERATIONS,
+    tournament_size: int = 5,
 ) -> Tuple[Dict[int, int], int, int]:
     """Genetic Algorithm for graph coloring"""
     num_colors = len(graph.nodes()) // 2
@@ -382,8 +369,13 @@ def genetic_algorithm(
 
         # Create offspring until population is filled
         while len(new_population) < population_size:
-            # Select parents from top half of population  (sorted by fitness)
-            parent1, parent2 = random.sample(population[: population_size // 2], 2)
+            # Select parents from top half of population (sorted by fitness)
+            parent1 = tournament_selection(population, tournament_size)
+            parent2 = tournament_selection(population, tournament_size)
+            # Ensure parents are different
+            if len(population) > 1:
+                while parent2 is parent1:
+                    parent2 = tournament_selection(population, tournament_size)
 
             # Apply crossover
             if crossover_type == CrossoverType.UNIFORM:
@@ -427,16 +419,12 @@ def genetic_algorithm(
 
 
 # Algorytm genetyczny - wersja równoległa (Heuristic)
-def evaluate_individual(graph: nx.Graph, coloring: Dict[int, int]) -> int:
-    """Evaluate single indyvidual's fitness"""
-    return -calculate_loss(graph, coloring)
-
 
 def evaluate_population_parallel(
     graph: nx.Graph, coloring: List[Dict[int, int]], pool: Pool
 ) -> List[int]:
     """Evaluate population fitness in parallel"""
-    evaluate_func = partial(evaluate_individual, graph)
+    evaluate_func = partial(calculate_loss, graph)
     return pool.map(evaluate_func, coloring)
 
 
@@ -449,6 +437,7 @@ def parallel_genetic_algorithm(
     mutation_type: MutationType = MutationType.RANDOM,
     termination_type: TerminationType = TerminationType.GENERATIONS,
     num_processes: int = None,
+    tournament_size: int = 5,
 ) -> Tuple[Dict[int, int], int, int]:
     """Parallel Genetic Algorithm for graph coloring"""
     if num_processes is None:
@@ -466,7 +455,7 @@ def parallel_genetic_algorithm(
         fitnesses = evaluate_population_parallel(graph, coloring, pool)
         attempts += population_size
 
-        population = [Individual(c, f) for c, f in zip(coloring, fitnesses)]
+        population = [Individual(c, -f) for c, f in zip(coloring, fitnesses)]
         best_solution = max(population, key=lambda x: x.fitness)
 
         generation = 0
@@ -490,8 +479,11 @@ def parallel_genetic_algorithm(
             # Create offspring list for parallel evaluation
             offspring_colorings = []
             while len(new_population) + len(offspring_colorings) // 2 < population_size:
-                # Select parents from top half
-                parent1, parent2 = random.sample(population[: population_size // 2], 2)
+                parent1 = tournament_selection(population, tournament_size)
+                parent2 = tournament_selection(population, tournament_size)
+                if len(population) > 1:
+                    while parent2 is parent1:
+                        parent2 = tournament_selection(population, tournament_size)
 
                 # Apply crossover
                 if crossover_type == CrossoverType.UNIFORM:
@@ -517,6 +509,8 @@ def parallel_genetic_algorithm(
 
             # Create new individuals
             for i in range(0, len(offspring_colorings), 2):
+                # In not parallel children and fitness are together in new_population
+
                 child1_coloring = offspring_colorings[i]
                 child2_coloring = offspring_colorings[i + 1]
                 # In parallel, because loss calculating is time-consuming
@@ -532,8 +526,8 @@ def parallel_genetic_algorithm(
 
                 new_population.extend(
                     [
-                        Individual(child1_coloring, child1_fitness),
-                        Individual(child2_coloring, child2_fitness),
+                        Individual(child1_coloring, -child1_fitness),
+                        Individual(child2_coloring, -child2_fitness),
                     ]
                 )
 
@@ -562,6 +556,7 @@ def island_genetic_algorithm(
     mutation_type: MutationType = MutationType.RANDOM,
     termination_type: TerminationType = TerminationType.GENERATIONS,
     num_processes: int = None,
+    tournament_size: int = 5,
 ) -> Tuple[Dict[int, int], int, int]:
     """Island Model Genetic Algorithm for graph coloring"""
     if num_processes is None:
@@ -580,7 +575,7 @@ def island_genetic_algorithm(
             ]
             fitnesses = evaluate_population_parallel(graph, colorings, pool)
             attempts += island_size
-            population = [Individual(c, f) for c, f in zip(colorings, fitnesses)]
+            population = [Individual(c, -f) for c, f in zip(colorings, fitnesses)]
             # Each island contain many individuals (population)
             # with Individual.coloring Dict[int, int], Individual.fitness
             islands.append(population)
@@ -625,8 +620,11 @@ def island_genetic_algorithm(
                 # the condition ensures that when generatng offspring, the total population size
                 # (existing individuals + new offspring (since each pair produces two offspring) does not exceed this island capacity
                 while len(new_population) + len(offspring_colorings) // 2 < island_size:
-                    # Pick 2 parents from the top half of the current island's population
-                    parent1, parent2 = random.sample(islands[i][: island_size // 2], 2)
+                    parent1 = tournament_selection(islands[i], tournament_size)
+                    parent2 = tournament_selection(islands[i], tournament_size)
+                    if len(islands[i]) > 1:
+                        while parent2 is parent1:
+                            parent2 = tournament_selection(islands[i], tournament_size)
 
                     if crossover_type == CrossoverType.UNIFORM:
                         child1, child2 = uniform_crossover(parent1, parent2)
@@ -664,8 +662,8 @@ def island_genetic_algorithm(
 
                     new_population.extend(
                         [
-                            Individual(child1_coloring, child1_fitness),
-                            Individual(child2_coloring, child2_fitness),
+                            Individual(child1_coloring, -child1_fitness),
+                            Individual(child2_coloring, -child2_fitness),
                         ]
                     )
 
@@ -677,7 +675,7 @@ def island_genetic_algorithm(
                 for i in range(num_islands):
                     # Select best individuals as migrants
                     migrants = islands[i][:migrants_per_island]
-                    # Send to next island (ring topology)
+                    # Send to next island (ring topology) to limit to max num_island
                     next_island = (i + 1) % num_islands
                     # Replace random individuals in target island
                     replace_indices = random.sample(

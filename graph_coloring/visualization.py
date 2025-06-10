@@ -7,7 +7,6 @@ def generate_chart(G: nx.Graph, coloring_result):
     pos = {i: np.random.rand(3) for i in G.nodes()}
     edge_x, edge_y, edge_z = [], [], []
 
-
     for edge in G.edges():
         x0, y0, z0 = pos[edge[0]]
         x1, y1, z1 = pos[edge[1]]
