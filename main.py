@@ -17,7 +17,6 @@ from graph_coloring.graph_algorithms import (
     parallel_genetic_algorithm,
     island_genetic_algorithm, 
 )
-from graph_coloring.visualization import generate_chart
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Graph coloring algorithms")
@@ -178,4 +177,3 @@ if __name__ == "__main__":
     print(
         f"Algorithm {args.algorithm} execution time: {alg_end - alg_start:.6f} seconds"
     )
-    generate_chart(G, coloring)

@@ -84,7 +84,7 @@ def stochastic_hill_climbing(
     attempts = 1
 
     while attempts < max_attempts:
-        # Get random neighbor (get the same coloring except one that was changed)
+        # Get random neighbor, not check all neighbors like in deterministic
         neighbor = get_neighbor(graph, current, num_colors)
         neighbor_loss = calculate_loss(graph, neighbor)
         attempts += 1
@@ -117,7 +117,7 @@ def tabu_search(
         best_neighbor_loss = float("inf")
         best_move = None
 
-        # Examine all possible moves
+        # Examine all possible moves and after it save best move to tabu list
         for node in graph.nodes():
             for color in range(num_colors):
                 if color != current[node]:
@@ -215,6 +215,7 @@ def simulated_annealing(
 
         # Calculate acceptance probability
         delta = neighbor_loss - current_loss
+        # Neighbor will be accepted if we fought better (smaller) loss or randomly
         if delta < 0 or random.random() < exp(-delta / temperature):
             current = neighbor
             current_loss = neighbor_loss
@@ -317,7 +318,9 @@ def tournament_selection(population: List[Individual], tournament_size: int) -> 
         raise ValueError("Population cannot be empty")
     if tournament_size <= 0:
         raise ValueError("Tournament size cannot be negative")
+    # From population take some random Individuals
     tournament_contenders = random.sample(population, min(tournament_size, len(population)))
+    # Take Individual with max fitness as a new parent
     return max(tournament_contenders, key=lambda individual: individual.fitness)
 
 # FITNESS == -LOSS
@@ -346,6 +349,7 @@ def genetic_algorithm(
         attempts += 1  # Count initial population evaluations
         population.append(Individual(coloring, fitness))
 
+    # From population (where are Individuals) find max fitness
     best_solution = max(population, key=lambda x: x.fitness)
 
     generation = 0
@@ -364,7 +368,7 @@ def genetic_algorithm(
 
         # Create new population
         new_population = []
-        # Stay only elite from population (natural selection) 
+        # Stay only elite from population (natural selection)
         new_population.extend(population[:elite_size])
 
         # Create offspring until population is filled
@@ -372,7 +376,7 @@ def genetic_algorithm(
             # Select parents from top half of population (sorted by fitness)
             parent1 = tournament_selection(population, tournament_size)
             parent2 = tournament_selection(population, tournament_size)
-            # Ensure parents are different
+            # Ensure parents are different, only can be the same if population.size == 1, because cannot be from it 2 parents
             if len(population) > 1:
                 while parent2 is parent1:
                     parent2 = tournament_selection(population, tournament_size)
@@ -415,6 +419,8 @@ def genetic_algorithm(
 
         generation += 1
 
+    # Change fitness' sign because are with negative
+    # Now our fitness is negative, and we want positive loss, so -best_solution.fitness = -(-loss) = loss
     return best_solution.coloring, -best_solution.fitness, attempts
 
 
@@ -424,7 +430,10 @@ def evaluate_population_parallel(
     graph: nx.Graph, coloring: List[Dict[int, int]], pool: Pool
 ) -> List[int]:
     """Evaluate population fitness in parallel"""
+    # f = calculate_loss, x = graph, y = coloring, and we have function f(x, y)
+    # evalute_func = g(y) == f(x, y), because partial creates auxiliary function to use it in all pools
     evaluate_func = partial(calculate_loss, graph)
+    # Take evaluate_func function and use it to each color in coloring
     return pool.map(evaluate_func, coloring)
 
 
@@ -671,13 +680,14 @@ def island_genetic_algorithm(
 
             # Migration phase
             if generation > 0 and generation % migration_interval == 0:
+                # How many percent of an island must be migrated on some other island
                 migrants_per_island = int(island_size * migration_rate)
                 for i in range(num_islands):
                     # Select best individuals as migrants
                     migrants = islands[i][:migrants_per_island]
                     # Send to next island (ring topology) to limit to max num_island
                     next_island = (i + 1) % num_islands
-                    # Replace random individuals in target island
+                    # Take random Individual's indicies from an island to migrate them
                     replace_indices = random.sample(
                         range(island_size), migrants_per_island
                     )

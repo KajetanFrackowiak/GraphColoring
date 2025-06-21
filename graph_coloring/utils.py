@@ -6,7 +6,9 @@ import random
 def calculate_loss(graph: nx.Graph, coloring: Dict[int, int]) -> int:
     """Calculate loss as number of conflicts (adjacent vertices with same color)"""
     conflicts = 0
+    # Two vertices
     for u, v in graph.edges():
+        # If two connected vertices have the same color, conflics++
         if coloring[u] == coloring[v]:
             conflicts += 1
     return conflicts
